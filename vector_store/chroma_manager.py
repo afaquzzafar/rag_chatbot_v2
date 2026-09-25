@@ -45,6 +45,7 @@
 #   count() -> int (used to detect "collection is empty, run ingestion")
 # ==============================================================================
 
+import threading
 from typing import Any, Dict, List, Optional
 
 import chromadb
@@ -57,29 +58,38 @@ logger = get_logger(__name__)
 
 _client: Optional[chromadb.ClientAPI] = None
 _collection: Optional[Any] = None
+# Multi-query retrieval searches several question variants concurrently
+# (rag_pipeline.py's thread pool). Opening PersistentClient from several
+# threads at once fails with "Could not connect to tenant default_tenant",
+# so first-time initialization is serialized.
+_init_lock = threading.Lock()
 
 
 def _get_collection():
     """
     Lazily create (once per process) the persistent Chroma client and
     collection, matching the singleton pattern used elsewhere in this app
-    to avoid re-opening the on-disk database on every call.
+    to avoid re-opening the on-disk database on every call. Thread-safe.
     """
     global _client, _collection
     if _collection is not None:
         return _collection
 
-    _client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
-    _collection = _client.get_or_create_collection(
-        name=settings.chroma_collection_name,
-        metadata={"hnsw:space": "cosine"},
-    )
-    logger.info(
-        "ChromaDB collection '%s' ready at '%s' (%d chunks currently stored)",
-        settings.chroma_collection_name,
-        settings.chroma_persist_dir,
-        _collection.count(),
-    )
+    with _init_lock:
+        if _collection is not None:
+            return _collection
+
+        _client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
+        _collection = _client.get_or_create_collection(
+            name=settings.chroma_collection_name,
+            metadata={"hnsw:space": "cosine"},
+        )
+        logger.info(
+            "ChromaDB collection '%s' ready at '%s' (%d chunks currently stored)",
+            settings.chroma_collection_name,
+            settings.chroma_persist_dir,
+            _collection.count(),
+        )
     return _collection
 
 

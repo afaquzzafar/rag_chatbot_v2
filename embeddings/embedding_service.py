@@ -34,6 +34,7 @@
 #   using whichever provider is currently configured.
 # ==============================================================================
 
+import threading
 from typing import List, Optional
 
 from config.settings import settings
@@ -43,16 +44,29 @@ from utils.logging_utils import get_logger
 logger = get_logger(__name__)
 
 _provider_instance: Optional[EmbeddingProvider] = None
+# Multi-query retrieval embeds several question variants concurrently
+# (rag_pipeline.py's thread pool). Without this lock, the very first query
+# could have every thread see `_provider_instance is None` and each load its
+# own copy of the model at the same time (~420MB apiece for the local model).
+_provider_lock = threading.Lock()
 
 
 def get_embedding_provider() -> EmbeddingProvider:
     """
     Return the process-wide EmbeddingProvider singleton, building it on
-    first call based on `settings.embedding_provider`.
+    first call based on `settings.embedding_provider`. Thread-safe.
     """
-    global _provider_instance
     if _provider_instance is not None:
         return _provider_instance
+    with _provider_lock:
+        if _provider_instance is None:
+            _build_provider()
+    return _provider_instance
+
+
+def _build_provider() -> None:
+    """Construct the configured provider into `_provider_instance` (caller holds the lock)."""
+    global _provider_instance
 
     if settings.embedding_provider == "gemini":
         from embeddings.gemini_embeddings import GeminiEmbeddingProvider
@@ -83,8 +97,6 @@ def get_embedding_provider() -> EmbeddingProvider:
         # defensive check here means this function never silently returns
         # None if it's ever called before validate().
         raise ValueError(f"Unknown EMBEDDING_PROVIDER: '{settings.embedding_provider}'")
-
-    return _provider_instance
 
 
 def generate_embeddings(texts: List[str]) -> List[List[float]]:
