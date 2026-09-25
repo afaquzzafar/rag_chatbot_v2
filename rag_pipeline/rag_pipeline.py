@@ -224,7 +224,7 @@ class RAGPipeline:
                 for c in before_reranking
             ]
             reranked_dicts = rerank(question, candidate_dicts)
-            after_reranking = [
+            reranked = [
                 RetrievedChunk(
                     chunk_text=d["chunk_text"],
                     score=d.get("rerank_score", d["score"]),
@@ -235,8 +235,24 @@ class RAGPipeline:
                     section_title=d.get("section_title", ""),
                 )
                 for d in reranked_dicts
-                if d.get("rerank_score", d["score"]) >= settings.score_threshold
-            ][: settings.top_k]
+            ]
+            after_reranking = [c for c in reranked if c.score >= settings.score_threshold][: settings.top_k]
+            if not after_reranking and settings.rerank_fallback_k > 0:
+                # Broad or multi-part questions score near 0 against every
+                # chunk with this cross-encoder, so the threshold alone would
+                # turn them into an automatic "not found" (see
+                # settings.rerank_fallback_k). Hand the best few to the LLM
+                # instead; its prompt still enforces "not found" when they
+                # don't contain the answer, and their low scores keep the
+                # displayed confidence honest.
+                after_reranking = reranked[: min(settings.rerank_fallback_k, settings.top_k)]
+                logger.info(
+                    "No chunk cleared the %.2f rerank threshold; falling back to the top %d "
+                    "(best rerank score %.3f)",
+                    settings.score_threshold,
+                    len(after_reranking),
+                    after_reranking[0].score if after_reranking else 0.0,
+                )
         else:
             after_reranking = before_reranking[: settings.top_k]
 

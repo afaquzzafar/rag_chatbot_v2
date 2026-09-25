@@ -145,6 +145,16 @@ class Settings:
     enable_hybrid_search: bool = _bool_env("ENABLE_HYBRID_SEARCH", True)
     enable_reranking: bool = _bool_env("ENABLE_RERANKING", True)
     reranker_model: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+    # The ms-marco cross-encoder is trained on specific question -> passage
+    # matches, so broad questions ("key points of coverage", "what are my
+    # benefits?") and two-part questions score near 0 against EVERY chunk,
+    # and the post-rerank threshold then drops all of them -> "not found"
+    # even though relevant pages exist. When that happens, pass the best
+    # RERANK_FALLBACK_K reranked chunks to the LLM anyway: the system prompt
+    # still forces the exact "not found" sentence if they don't contain the
+    # answer, and the (low) confidence shown reflects the weak match.
+    # 0 restores the strict behavior (threshold can empty the result).
+    rerank_fallback_k: int = int(os.getenv("RERANK_FALLBACK_K", "3"))
 
     # -- Multi-query retrieval (rag_pipeline/multi_query.py) ------------------
     # Off by default: unlike hybrid search and reranking (both local, free),
