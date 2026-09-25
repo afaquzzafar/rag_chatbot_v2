@@ -53,7 +53,9 @@ langchain-core==0.3.15
 langchain-text-splitters==0.3.2   # RecursiveCharacterTextSplitter
 
 # --- Vector database ------------------------------------------------------------
-chromadb==0.5.15
+# 1.x: 0.5.x needs chroma-hnswlib 0.7.6, which has no prebuilt Windows wheel
+# for Python 3.12 (would require a C++ compiler to install).
+chromadb>=1.0,<2
 
 # --- PDF parsing -------------------------------------------------------------------
 PyMuPDF==1.24.10                  # imported as "fitz"
