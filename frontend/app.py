@@ -153,6 +153,15 @@ def render_assistant_message(index: int, message: dict, skip_content: bool = Fal
     rendered incrementally into a placeholder as it arrived (see main()), so
     rendering it again here would show it twice.
     """
+    if message.get("service_error"):
+        # The AI service failed (quota, invalid key, outage): no answer was
+        # generated, so there are no sources to cite or answer to rate --
+        # just the error, with 0% confidence.
+        if not skip_content:
+            st.warning(message["content"], icon="⚠️")
+        st.caption("Confidence: 0%")
+        return
+
     if not skip_content:
         st.markdown(message["content"])
     render_sources(message.get("sources", []))
@@ -233,7 +242,10 @@ def main() -> None:
                 placeholder.markdown(accumulated_text + "▌")
 
             result = pipeline.answer_question(question, on_token=on_token)
-            placeholder.markdown(result["answer"])
+            if result["service_error"]:
+                placeholder.warning(result["answer"], icon="⚠️")
+            else:
+                placeholder.markdown(result["answer"])
 
             # Append BEFORE rendering, so the message's index in
             # st.session_state.messages is already final -- the feedback
@@ -246,6 +258,7 @@ def main() -> None:
                     "sources": result["sources"],
                     "confidence": result["confidence"],
                     "grounded": result["grounded"],
+                    "service_error": result["service_error"],
                     "question": question,
                 }
             )

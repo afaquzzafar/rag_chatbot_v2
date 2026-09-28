@@ -107,9 +107,63 @@ _PERMANENT_AUTH_ERROR_MARKERS = (
 )
 
 
+QUOTA_EXCEEDED_MESSAGE = (
+    "The AI service's usage limit for this API key has been reached, so I can't "
+    "generate an answer right now. If it's the per-minute limit, please wait about "
+    "a minute and try again. If it keeps happening, the key's daily limit has been "
+    "used up: try again after it resets, or upgrade the API key's plan for higher limits."
+)
+
+# Every message returned INSTEAD of an answer when the AI service itself
+# failed. answer_question() uses this to return no sources and 0 confidence
+# for such turns: showing retrieval scores under an error message suggests an
+# answer was produced when none was.
+SERVICE_ERROR_MESSAGES = frozenset(
+    {SERVICE_UNAVAILABLE_MESSAGE, AUTH_ERROR_MESSAGE, QUOTA_EXCEEDED_MESSAGE}
+)
+
+# Gemini returns 429 RESOURCE_EXHAUSTED ("You exceeded your current quota")
+# for both its per-minute and per-day free-tier limits.
+_QUOTA_ERROR_MARKERS = (
+    "resource_exhausted",
+    "resourceexhausted",
+    "exceeded your current quota",
+    "quota exceeded",
+    "rate limit",
+    "429",
+)
+_QUOTA_ERROR_TYPES = ("ResourceExhausted", "TooManyRequests", "RateLimitError")
+
+
 def _is_permanent_auth_error(exc: BaseException) -> bool:
     message = str(exc).lower()
     return any(marker in message for marker in _PERMANENT_AUTH_ERROR_MARKERS)
+
+
+def _is_quota_error(exc: BaseException) -> bool:
+    if type(exc).__name__ in _QUOTA_ERROR_TYPES:
+        return True
+    message = str(exc).lower()
+    return any(marker in message for marker in _QUOTA_ERROR_MARKERS)
+
+
+def _is_daily_quota_error(exc: BaseException) -> bool:
+    # e.g. quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier".
+    # Unlike a per-minute limit, retrying within seconds can never succeed.
+    return _is_quota_error(exc) and "perday" in str(exc).lower()
+
+
+def _should_retry(exc: BaseException) -> bool:
+    return not (_is_permanent_auth_error(exc) or _is_daily_quota_error(exc))
+
+
+def _service_error_message(exc: BaseException) -> str:
+    """The user-facing message for an exception raised by the AI service."""
+    if _is_permanent_auth_error(exc):
+        return AUTH_ERROR_MESSAGE
+    if _is_quota_error(exc):
+        return QUOTA_EXCEEDED_MESSAGE
+    return SERVICE_UNAVAILABLE_MESSAGE
 
 
 @dataclass
@@ -328,8 +382,7 @@ class RAGPipeline:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=3, max=20),
         retry=lambda retry_state: (
-            retry_state.outcome.failed
-            and not _is_permanent_auth_error(retry_state.outcome.exception())
+            retry_state.outcome.failed and _should_retry(retry_state.outcome.exception())
         ),
         reraise=True,
     )
@@ -350,8 +403,7 @@ class RAGPipeline:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=3, max=20),
         retry=lambda retry_state: (
-            retry_state.outcome.failed
-            and not _is_permanent_auth_error(retry_state.outcome.exception())
+            retry_state.outcome.failed and _should_retry(retry_state.outcome.exception())
         ),
         reraise=True,
     )
@@ -387,7 +439,8 @@ class RAGPipeline:
         Streamlit UI as a raw traceback -- a degraded but honest response
         beats a crashed chat turn. A permanent auth failure gets its own
         distinct message rather than the generic "try again in a moment"
-        one, since waiting will never fix a dead key.
+        one, since waiting will never fix a dead key. An exhausted usage
+        quota (429) likewise gets its own message naming the key's limit.
         """
         messages = build_prompt(context, question, self.memory.get_history())
         try:
@@ -396,9 +449,7 @@ class RAGPipeline:
             return self._invoke_llm(messages)
         except Exception as exc:
             logger.exception("Chat model call failed")
-            if _is_permanent_auth_error(exc):
-                return AUTH_ERROR_MESSAGE
-            return SERVICE_UNAVAILABLE_MESSAGE
+            return _service_error_message(exc)
 
     def answer_question(
         self, question: str, on_token: Optional[Callable[[str], None]] = None
@@ -420,11 +471,19 @@ class RAGPipeline:
               "sources": [{"document_name", "document_type", "page_number", "score"}, ...],
               "confidence": float,  # average retrieval score of chunks actually used, 0 if none
               "grounded": bool,     # heuristic grounding check result
+              "service_error": bool,  # True if the AI service failed and "answer" is an
+                                      # error message (then sources=[] and confidence=0)
             }
         """
         is_allowed, rejection_reason = guardrails.check_input(question)
         if not is_allowed:
-            return {"answer": rejection_reason, "sources": [], "confidence": 0.0, "grounded": True}
+            return {
+                "answer": rejection_reason,
+                "sources": [],
+                "confidence": 0.0,
+                "grounded": True,
+                "service_error": False,
+            }
 
         active_chat_model = (
             settings.gemini_chat_model
@@ -443,11 +502,16 @@ class RAGPipeline:
                 # crash this whole method with a raw traceback reaching the
                 # Streamlit UI. Degrade the same way generate_answer() does.
                 logger.exception("Retrieval failed")
-                answer = AUTH_ERROR_MESSAGE if _is_permanent_auth_error(exc) else SERVICE_UNAVAILABLE_MESSAGE
-                self.memory.add_turn(question, answer)
+                answer = _service_error_message(exc)
                 run_data["answer"] = answer
                 run_data["retrieved_chunks"] = []
-                return {"answer": answer, "sources": [], "confidence": 0.0, "grounded": True}
+                return {
+                    "answer": answer,
+                    "sources": [],
+                    "confidence": 0.0,
+                    "grounded": True,
+                    "service_error": True,
+                }
 
             if not chunks:
                 # No relevant context at all -- return the required fallback
@@ -464,6 +528,19 @@ class RAGPipeline:
                 if settings.enable_multi_hop:
                     chunks, context = self._run_multi_hop(standalone_question, chunks, context)
                 answer = self.generate_answer(context, standalone_question, on_token=on_token)
+                if answer in SERVICE_ERROR_MESSAGES:
+                    # No answer was generated, so no sources or confidence:
+                    # retrieval scores shown under an error message read as
+                    # if the bot had answered from those pages.
+                    run_data["answer"] = answer
+                    run_data["retrieved_chunks"] = []
+                    return {
+                        "answer": answer,
+                        "sources": [],
+                        "confidence": 0.0,
+                        "grounded": True,
+                        "service_error": True,
+                    }
                 sources = [
                     {
                         "document_name": c.document_name,
@@ -478,6 +555,9 @@ class RAGPipeline:
                 confidence = sum(c.score for c in chunks) / len(chunks)
                 is_grounded = guardrails.check_grounding(answer, [c.chunk_text for c in chunks])
 
+            # Only real answers go into conversation memory -- an error
+            # message in the history would be fed to the query rewriter and
+            # the prompt on the next turn.
             self.memory.add_turn(question, answer)
 
             run_data["answer"] = answer
@@ -488,4 +568,5 @@ class RAGPipeline:
             "sources": sources,
             "confidence": round(confidence, 3),
             "grounded": is_grounded,
+            "service_error": False,
         }

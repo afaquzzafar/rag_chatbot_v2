@@ -13,7 +13,12 @@ import pytest
 from chunking.chunker import Chunk
 from embeddings.embedding_service import generate_embeddings
 from rag_pipeline.prompt_templates import NOT_FOUND_MESSAGE
-from rag_pipeline.rag_pipeline import AUTH_ERROR_MESSAGE, SERVICE_UNAVAILABLE_MESSAGE, RAGPipeline
+from rag_pipeline.rag_pipeline import (
+    AUTH_ERROR_MESSAGE,
+    QUOTA_EXCEEDED_MESSAGE,
+    SERVICE_UNAVAILABLE_MESSAGE,
+    RAGPipeline,
+)
 from rag_pipeline.retrieval_service import RetrievedChunk
 from vector_store import chroma_manager
 
@@ -112,7 +117,7 @@ def test_generate_answer_degrades_gracefully_when_llm_keeps_failing(pipeline, mo
     monkeypatch.setattr(time, "sleep", lambda seconds: None)
 
     def always_fails(self, messages, **kwargs):
-        raise RuntimeError("simulated 429 rate limit")
+        raise RuntimeError("503 Service Unavailable: the model is overloaded")
 
     monkeypatch.setattr(type(pipeline._llm), "invoke", always_fails)
 
@@ -191,7 +196,7 @@ def test_generate_answer_streaming_degrades_gracefully_when_llm_keeps_failing(pi
     monkeypatch.setattr(time, "sleep", lambda seconds: None)
 
     def always_fails(self, messages, **kwargs):
-        raise RuntimeError("simulated 429 rate limit")
+        raise RuntimeError("503 Service Unavailable: the model is overloaded")
 
     monkeypatch.setattr(type(pipeline._llm), "stream", always_fails)
 
@@ -238,6 +243,85 @@ def test_answer_question_degrades_gracefully_when_retrieval_fails(pipeline, monk
     assert result["answer"] == AUTH_ERROR_MESSAGE
     assert result["sources"] == []
     assert result["confidence"] == 0.0
+    assert result["service_error"] is True
+    assert pipeline.memory.get_history() == []
+
+
+# The two shapes of Gemini's real free-tier 429, as seen live.
+_PER_MINUTE_429 = (
+    "429 You exceeded your current quota, please check your plan and billing details. "
+    'quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier" quota_value: 5'
+)
+_PER_DAY_429 = (
+    "429 You exceeded your current quota, please check your plan and billing details. "
+    'quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier" quota_value: 20'
+)
+
+
+def test_generate_answer_gives_quota_message_and_retries_a_per_minute_limit(pipeline, monkeypatch):
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    call_count = {"n": 0}
+
+    def raises_quota_error(self, messages, **kwargs):
+        call_count["n"] += 1
+        raise RuntimeError(_PER_MINUTE_429)
+
+    monkeypatch.setattr(type(pipeline._llm), "invoke", raises_quota_error)
+
+    answer = pipeline.generate_answer("some context", "What is my deductible?")
+
+    assert answer == QUOTA_EXCEEDED_MESSAGE
+    assert call_count["n"] == 3  # a per-minute limit can clear, so it is retried
+
+
+def test_generate_answer_fails_fast_on_an_exhausted_daily_quota(pipeline, monkeypatch):
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    call_count = {"n": 0}
+
+    def raises_daily_quota_error(self, messages, **kwargs):
+        call_count["n"] += 1
+        raise RuntimeError(_PER_DAY_429)
+
+    monkeypatch.setattr(type(pipeline._llm), "invoke", raises_daily_quota_error)
+
+    answer = pipeline.generate_answer("some context", "What is my deductible?")
+
+    assert answer == QUOTA_EXCEEDED_MESSAGE
+    assert call_count["n"] == 1  # retrying seconds later can't beat a daily limit
+
+
+def test_answer_question_shows_no_sources_or_confidence_when_generation_fails(pipeline, monkeypatch):
+    # Retrieval succeeds (relevant chunk found), but the LLM call hits the
+    # quota: the user must see only the quota message -- not sources and a
+    # relevance-based confidence that suggest an answer was produced.
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    chunk = Chunk(
+        chunk_id="chunk-1",
+        chunk_text="The annual deductible for this plan is $250 per member.",
+        file_name="Summary_of_Benefits.pdf",
+        page_number=3,
+        document_type="Summary of Benefits",
+    )
+    chroma_manager.upsert_chunks([chunk], generate_embeddings([chunk.chunk_text]))
+
+    def raises_daily_quota_error(self, messages, **kwargs):
+        raise RuntimeError(_PER_DAY_429)
+
+    monkeypatch.setattr(type(pipeline._llm), "invoke", raises_daily_quota_error)
+
+    result = pipeline.answer_question("What is my annual deductible?")
+
+    assert result["answer"] == QUOTA_EXCEEDED_MESSAGE
+    assert result["sources"] == []
+    assert result["confidence"] == 0.0
+    assert result["service_error"] is True
+    assert pipeline.memory.get_history() == []  # errors aren't fed to the next turn
 
 
 def test_retrieve_with_stages_shows_reranking_promoting_a_chunk(pipeline, monkeypatch):
