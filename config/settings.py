@@ -71,6 +71,10 @@ class Settings:
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_chat_model: str = os.getenv("GEMINI_CHAT_MODEL", "gemini-3.8-flash")
     gemini_temperature: float = float(os.getenv("GEMINI_TEMPERATURE", "0.1"))
+    # Per-request timeout for Gemini chat calls. A stalled request otherwise
+    # hangs the chat turn indefinitely; on timeout the normal retry and
+    # "trouble reaching the AI service" handling applies.
+    gemini_request_timeout_seconds: float = float(os.getenv("GEMINI_REQUEST_TIMEOUT_SECONDS", "60"))
     # Gemini's free tier caps CHAT generation at a much stricter ~5
     # requests/minute (separate from the embedding quota above). Both the
     # chat call and the query-rewrite call draw from this same quota, so

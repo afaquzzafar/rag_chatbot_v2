@@ -76,18 +76,47 @@ def get_chat_model():
             token=settings.databricks_token or None,
         )
     elif settings.llm_provider == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
         logger.info("Using Gemini chat model (model='%s')", settings.gemini_chat_model)
-        _llm_instance = ChatGoogleGenerativeAI(
+        _llm_instance = _gemini_chat_model_class()(
             model=settings.gemini_chat_model,
             google_api_key=settings.gemini_api_key,
             temperature=settings.gemini_temperature,
+            # Without a timeout a stalled connection blocks the chat turn
+            # forever (seen live: "Searching your plan documents..." for 4+
+            # minutes while the same request succeeds in ~8s on retry).
+            timeout=settings.gemini_request_timeout_seconds,
         )
     else:
         raise ValueError(f"Unknown LLM_PROVIDER: '{settings.llm_provider}'")
 
     return _llm_instance
+
+
+def _gemini_chat_model_class():
+    """
+    ChatGoogleGenerativeAI, but with its `timeout` actually applied.
+
+    langchain-google-genai 2.0.x accepts `timeout` on the chat class but never
+    forwards it to the Gemini client's generate_content /
+    stream_generate_content calls (only its plain-text LLM class does), so
+    without this a request can hang indefinitely. Extra keyword arguments to
+    _generate/_stream ARE forwarded to those client calls, which accept
+    `timeout=` (a gRPC deadline, covering a whole streamed response too).
+    """
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    class TimeoutChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            if self.timeout:
+                kwargs.setdefault("timeout", self.timeout)
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+        def _stream(self, messages, stop=None, run_manager=None, **kwargs):
+            if self.timeout:
+                kwargs.setdefault("timeout", self.timeout)
+            return super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    return TimeoutChatGoogleGenerativeAI
 
 
 def acquire_chat_slot() -> None:

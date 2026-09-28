@@ -159,7 +159,14 @@ def _should_retry(exc: BaseException) -> bool:
     # counts rejected requests against the same free-tier quotas (5/min,
     # 20/day). Retrying on top of that multiplied one rejected call into ~6
     # requests -- live, a single question exhausted the whole daily quota.
-    return not (_is_permanent_auth_error(exc) or _is_quota_error(exc))
+    # Timeouts (DeadlineExceeded) are likewise already retried once by that
+    # library; retrying them here too would make one stalled request cost
+    # up to ~6 x GEMINI_REQUEST_TIMEOUT_SECONDS before the user sees anything.
+    return not (_is_permanent_auth_error(exc) or _is_quota_error(exc) or _is_timeout_error(exc))
+
+
+def _is_timeout_error(exc: BaseException) -> bool:
+    return type(exc).__name__ == "DeadlineExceeded" or "deadline exceeded" in str(exc).lower()
 
 
 def _service_error_message(exc: BaseException) -> str:
