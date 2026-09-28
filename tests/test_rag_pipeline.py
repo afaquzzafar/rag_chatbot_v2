@@ -258,7 +258,7 @@ _PER_DAY_429 = (
 )
 
 
-def test_generate_answer_gives_quota_message_and_retries_a_per_minute_limit(pipeline, monkeypatch):
+def test_generate_answer_gives_quota_message_and_does_not_retry_a_per_minute_limit(pipeline, monkeypatch):
     import time
 
     monkeypatch.setattr(time, "sleep", lambda seconds: None)
@@ -273,7 +273,9 @@ def test_generate_answer_gives_quota_message_and_retries_a_per_minute_limit(pipe
     answer = pipeline.generate_answer("some context", "What is my deductible?")
 
     assert answer == QUOTA_EXCEEDED_MESSAGE
-    assert call_count["n"] == 3  # a per-minute limit can clear, so it is retried
+    # Not retried: rejected requests also count against the quota, and the
+    # Gemini client library already retries 429s internally.
+    assert call_count["n"] == 1
 
 
 def test_generate_answer_fails_fast_on_an_exhausted_daily_quota(pipeline, monkeypatch):

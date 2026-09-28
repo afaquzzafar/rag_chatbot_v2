@@ -154,7 +154,12 @@ def _is_daily_quota_error(exc: BaseException) -> bool:
 
 
 def _should_retry(exc: BaseException) -> bool:
-    return not (_is_permanent_auth_error(exc) or _is_daily_quota_error(exc))
+    # Quota errors are never retried here. langchain-google-genai already
+    # retries every 429 internally (a hard-coded 2 attempts), and Google
+    # counts rejected requests against the same free-tier quotas (5/min,
+    # 20/day). Retrying on top of that multiplied one rejected call into ~6
+    # requests -- live, a single question exhausted the whole daily quota.
+    return not (_is_permanent_auth_error(exc) or _is_quota_error(exc))
 
 
 def _service_error_message(exc: BaseException) -> str:
