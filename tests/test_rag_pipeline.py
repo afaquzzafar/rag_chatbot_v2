@@ -500,6 +500,76 @@ def test_multi_hop_performs_exactly_one_follow_up_and_merges_both_hops_chunks(pi
     assert plan_calls["n"] == 1
 
 
+def _chunks(prefix: str, count: int, score: float):
+    return [
+        RetrievedChunk(
+            chunk_text=f"{prefix} {i}", score=score - i / 100, document_name=f"{prefix}.pdf",
+            document_type="Test", page_number=i,
+        )
+        for i in range(count)
+    ]
+
+
+def test_multi_hop_caps_sources_at_top_k_and_keeps_follow_up_chunks(pipeline, monkeypatch):
+    # Regression test: a follow-up hop appended its chunks to the first
+    # round's, so "How do I report suspected insurance fraud?" showed 9
+    # sources with TOP_K=5. The merged set must be capped at top_k -- and
+    # the follow-up chunks (lower-scoring, but fetched because the first
+    # round lacked that information) must still be in it.
+    import rag_pipeline.rag_pipeline as rag_pipeline_module
+
+    monkeypatch.setattr(rag_pipeline_module.settings, "enable_multi_hop", True)
+    monkeypatch.setattr(rag_pipeline_module.settings, "max_hops", 2)
+    monkeypatch.setattr(rag_pipeline_module.settings, "top_k", 5)
+
+    first_round, follow_up = _chunks("first", 5, 0.9), _chunks("follow", 4, 0.5)
+    monkeypatch.setattr(
+        pipeline, "retrieve", lambda q: follow_up if q == "follow-up query" else first_round
+    )
+    plan_calls = {"n": 0}
+
+    def fake_plan_next_hop(question, context, llm):
+        plan_calls["n"] += 1
+        return "follow-up query" if plan_calls["n"] == 1 else None
+
+    monkeypatch.setattr(rag_pipeline_module, "plan_next_hop", fake_plan_next_hop)
+    monkeypatch.setattr(
+        type(pipeline._llm), "invoke", lambda self, messages, **kwargs: SimpleNamespace(content="Answer.")
+    )
+
+    result = pipeline.answer_question("original question")
+
+    assert len(result["sources"]) == 5
+    assert [s["document_name"] for s in result["sources"]] == [
+        "first.pdf", "follow.pdf", "first.pdf", "follow.pdf", "first.pdf",
+    ]
+
+
+def test_multi_hop_shows_fewer_than_top_k_when_fewer_chunks_exist(pipeline, monkeypatch):
+    import rag_pipeline.rag_pipeline as rag_pipeline_module
+
+    monkeypatch.setattr(rag_pipeline_module.settings, "enable_multi_hop", True)
+    monkeypatch.setattr(rag_pipeline_module.settings, "max_hops", 2)
+    monkeypatch.setattr(rag_pipeline_module.settings, "top_k", 5)
+
+    first_round, follow_up = _chunks("first", 1, 0.9), _chunks("follow", 1, 0.85)
+    monkeypatch.setattr(
+        pipeline, "retrieve", lambda q: follow_up if q == "follow-up query" else first_round
+    )
+    monkeypatch.setattr(
+        rag_pipeline_module,
+        "plan_next_hop",
+        lambda question, context, llm: "follow-up query" if "first 0" in context and "follow" not in context else None,
+    )
+    monkeypatch.setattr(
+        type(pipeline._llm), "invoke", lambda self, messages, **kwargs: SimpleNamespace(content="Answer.")
+    )
+
+    result = pipeline.answer_question("original question")
+
+    assert len(result["sources"]) == 2
+
+
 def test_multi_hop_skips_the_extra_retrieval_when_context_is_already_sufficient(pipeline, monkeypatch):
     import rag_pipeline.rag_pipeline as rag_pipeline_module
 

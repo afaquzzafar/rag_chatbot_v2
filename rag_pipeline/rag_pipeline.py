@@ -176,6 +176,14 @@ def _service_error_message(exc: BaseException) -> str:
     return SERVICE_UNAVAILABLE_MESSAGE
 
 
+def _interleave(first: List[RetrievedChunk], second: List[RetrievedChunk]) -> List[RetrievedChunk]:
+    """Alternate items from two best-first lists: first[0], second[0], first[1], ..."""
+    merged: List[RetrievedChunk] = []
+    for i in range(max(len(first), len(second))):
+        merged.extend(lst[i] for lst in (first, second) if i < len(lst))
+    return merged
+
+
 def _normalize_answer(text: str) -> str:
     return text.strip().strip("\"'*_` ").rstrip(".").strip().lower()
 
@@ -273,7 +281,13 @@ class RAGPipeline:
                 # this same check against unchanged context.
                 break
 
-            chunks = chunks + new_chunks
+            # Cap at top_k like every other retrieval path -- simply
+            # appending let a follow-up push the total to 2 x top_k (the UI
+            # showed 9-10 "sources"). Interleaving (best of each round
+            # first) instead of re-sorting by score guarantees the
+            # follow-up's chunks survive the cap: they were fetched
+            # precisely because the first round lacked that information.
+            chunks = _interleave(chunks, new_chunks)[: settings.top_k]
             seen_identities.update(chunk_identity(c) for c in new_chunks)
             context = self.build_context(chunks)
             hops_done += 1
