@@ -1,3 +1,16 @@
+---
+# Hugging Face Space configuration (ignored everywhere else). The Space is
+# built from ./Dockerfile; see "Deploying to Hugging Face Spaces" below.
+title: Healthcare Insurance Assistant
+emoji: 🩺
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8501
+pinned: false
+short_description: RAG chatbot that answers from health plan documents
+---
+
 # Healthcare Insurance Assistant — Local RAG Chatbot
 
 A Retrieval-Augmented Generation (RAG) chatbot that answers member, provider,
@@ -323,3 +336,30 @@ rag_chatbot/
 ├── .env.example
 └── README.md
 ```
+
+## 12. Deploying to Hugging Face Spaces
+
+The repo is ready to run as a Hugging Face **Docker Space**: the YAML header at
+the top of this README configures the Space, and `Dockerfile` builds an image
+with the dependencies, both local models and the vector index baked in (so
+the app starts fast and needs only `GEMINI_API_KEY` at runtime).
+
+```bash
+hf auth login                                   # once; paste a HF *write* token
+python -m scripts.deploy_hf_space <hf-user>/healthcare-insurance-assistant
+```
+
+`scripts/deploy_hf_space.py` creates the Space (private by default; add
+`--public` to share it), sets the non-secret settings (chat model,
+multi-query / multi-hop flags) as Space variables, and uploads the project,
+excluding `.env` and local runtime data. Then, in the Space's **Settings ->
+Variables and secrets**, add `GEMINI_API_KEY` as a **secret**. Re-run the same
+command to deploy code changes.
+
+Notes:
+- The hosted app has no login of its own. A **private** Space is only usable by
+  you (and members you add); a **public** Space lets anyone spend your Gemini
+  quota.
+- Space storage is not persistent: feedback (`vectorstore_db/feedback.jsonl`)
+  and MLflow runs are lost when the Space restarts. The index itself is
+  rebuilt into the image on every deploy.

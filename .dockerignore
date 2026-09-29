@@ -1,0 +1,16 @@
+# Secrets -- the image gets GEMINI_API_KEY from the host's environment instead
+.env
+
+# Local runtime data (rebuilt inside the image by scripts/ingest.py)
+vectorstore_db/
+mlruns/
+eval_results/
+
+# Python / tooling cruft
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+.git/
+*.zip
