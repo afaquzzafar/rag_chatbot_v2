@@ -42,13 +42,13 @@ def test_chroma_collection_initializes_once_under_concurrent_first_use():
 
 def test_embedding_provider_is_built_once_under_concurrent_first_use(monkeypatch):
     import embeddings.embedding_service as embedding_service
-    import embeddings.local_embeddings as local_embeddings
+    import embeddings.gemini_embeddings as gemini_embeddings
 
     constructed = []
 
     class SlowCountingProvider(EmbeddingProvider):
-        def __init__(self, model_name: str):
-            time.sleep(0.2)  # widen the race window, like a real model load
+        def __init__(self, model_name: str, api_key: str):
+            time.sleep(0.2)  # widen the race window, like a slow client setup
             constructed.append(model_name)
 
         def embed_documents(self, texts):
@@ -57,8 +57,8 @@ def test_embedding_provider_is_built_once_under_concurrent_first_use(monkeypatch
         def embed_query(self, text):
             return [0.0]
 
-    monkeypatch.setattr(settings, "embedding_provider", "local")
-    monkeypatch.setattr(local_embeddings, "LocalEmbeddingProvider", SlowCountingProvider)
+    monkeypatch.setattr(settings, "embedding_provider", "gemini")
+    monkeypatch.setattr(gemini_embeddings, "GeminiEmbeddingProvider", SlowCountingProvider)
     monkeypatch.setattr(embedding_service, "_provider_instance", None)
 
     providers = _run_concurrently(embedding_service.get_embedding_provider)

@@ -122,8 +122,8 @@ def _chunk_file_hierarchically(pages: List[PageContent]) -> List[Chunk]:
     for piece in pieces:
         # A short "breadcrumb" of where this chunk sits in the document,
         # prepended to its text. This keeps a chunk meaningful even once it's
-        # retrieved on its own, out of context (the embedding model and the
-        # reranker both see it too), and mirrors the citation shown to users.
+        # retrieved on its own, out of context (the embedding model sees it
+        # too), and mirrors the citation shown to users.
         breadcrumb_parts = [p for p in (piece.chapter_title, piece.section_title) if p]
         chunk_text = f"{' > '.join(breadcrumb_parts)}\n{piece.text}" if breadcrumb_parts else piece.text
 

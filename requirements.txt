@@ -6,28 +6,11 @@
 # Why pinned versions? RAG apps chain together many fast-moving libraries.
 # Pinning means the app you build today still works the same way next month.
 #
-# WHY THE --extra-index-url LINE BELOW (CPU-only torch)
-#   sentence-transformers (used for local embeddings and the cross-encoder
-#   reranker) depends on torch. Installed with no other instruction, pip
-#   resolves the default PyPI "torch" wheel, which pulls in a full CUDA
-#   toolkit as separate "nvidia-*" packages (~4 GB) even on a machine with
-#   no GPU -- this project only ever runs torch on CPU (a small local
-#   embedding model and a small cross-encoder, neither GPU-accelerated
-#   here). --extra-index-url adds PyTorch's own CPU-only wheel index
-#   alongside PyPI; pinning torch to the exact "+cpu"-suffixed version below
-#   is what actually makes pip pick the CPU build deterministically --
-#   PyPI's default wheel never carries that "+cpu" local version suffix, so
-#   only PyTorch's CPU index can satisfy this exact version string, with no
-#   ambiguity about which index "wins". This cuts a full install from ~7 GB
-#   to ~3 GB. If this exact pin 404s (this project's sandbox couldn't reach
-#   download.pytorch.org to verify a "+cpu" build was published for this
-#   specific torch version), check available versions with:
-#     pip index versions torch --index-url https://download.pytorch.org/whl/cpu
-#   and update both this pin and the sentence-transformers pin below to a
-#   mutually compatible pair (any published "+cpu" version pair works --
-#   this codebase only uses long-stable sentence-transformers APIs).
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.14.0+cpu
+# NO LOCAL MODELS
+#   Embeddings and answers both come from hosted APIs (Gemini, or Databricks),
+#   so nothing here downloads model weights (no torch, no sentence-transformers,
+#   no huggingface.co access) -- the install stays small and works on company
+#   networks that block model hubs.
 
 # --- Frontend ----------------------------------------------------------------
 streamlit==1.38.0
@@ -60,19 +43,13 @@ chromadb>=1.0,<2
 # --- PDF parsing -------------------------------------------------------------------
 PyMuPDF==1.24.10                  # imported as "fitz"
 
-# --- Local embeddings (free, no API key; needs huggingface.co reachable) ----------
-# Pinned exactly (not >=) because it must stay compatible with the pinned
-# CPU-only torch version above -- an unpinned newer sentence-transformers
-# could require a newer torch than the "+cpu" version pinned there.
-sentence-transformers==6.1.0
-
-# --- Hybrid search + reranking -----------------------------------------------------
+# --- Hybrid search ------------------------------------------------------------------
 rank-bm25==0.2.2                  # keyword (BM25) search, combined with vector search
 
 # --- Optional graph-based orchestration -----------------------------------------------
 # Not required by rag_pipeline/rag_pipeline.py (a plain sequential class is
 # enough for this pipeline's 4 steps), but installed and available if you
-# want to re-express retrieve->rerank->generate as a LangGraph StateGraph
+# want to re-express retrieve->generate as a LangGraph StateGraph
 # (e.g. to add branching/looping steps later, like a self-correction retry).
 langgraph==0.2.45
 

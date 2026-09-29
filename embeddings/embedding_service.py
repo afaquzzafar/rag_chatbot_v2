@@ -6,13 +6,13 @@
 # WHAT THIS FILE DOES
 #   The one place the rest of the app talks to in order to turn text into
 #   vectors. It reads `settings.embedding_provider` and hands back the
-#   matching EmbeddingProvider implementation (local or Gemini) -- this is
+#   matching EmbeddingProvider implementation (Gemini or Databricks) -- this is
 #   the "factory" pattern: callers ask for "an embedding provider" without
 #   knowing or caring which concrete class they get back.
 #
 # WHY A SINGLETON FACTORY
-#   Loading the local sentence-transformers model is slow (~1-2s, plus a
-#   one-time download); creating a fresh Gemini client per call is wasteful.
+#   Creating a fresh Gemini/Databricks client (and its rate limiter) per
+#   call is wasteful, and separate limiters would each under-count usage.
 #   `get_embedding_provider()` builds the provider once per process and
 #   reuses it, the same way you wouldn't reconnect to a database on every
 #   query.
@@ -87,11 +87,6 @@ def _build_provider() -> None:
         _provider_instance = DatabricksEmbeddingProvider(
             endpoint_name=settings.databricks_embedding_endpoint
         )
-    elif settings.embedding_provider == "local":
-        from embeddings.local_embeddings import LocalEmbeddingProvider
-
-        logger.info("Using local embeddings (model='%s')", settings.local_embedding_model)
-        _provider_instance = LocalEmbeddingProvider(model_name=settings.local_embedding_model)
     else:
         # settings.validate() should have already caught this, but a
         # defensive check here means this function never silently returns

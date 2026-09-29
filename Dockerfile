@@ -1,27 +1,28 @@
 # ==============================================================================
-# Dockerfile -- container image for hosting the chatbot (e.g. a Hugging Face
-# Docker Space; see the YAML header at the top of README.md).
+# Dockerfile -- container image for running the chatbot on any Docker host
+# (a company VM/sandbox, a cloud container service, ...).
 #
-# Everything slow or network-dependent happens at BUILD time, so the running
-# app starts quickly and needs only GEMINI_API_KEY at runtime:
-#   - dependencies (CPU-only torch, per requirements.txt)
-#   - the local embedding model and the reranker model (Hugging Face Hub)
-#   - the vector index over data/pdfs (local embeddings, no API key needed)
+#   docker build -t insurance-chatbot .
+#   docker run -p 8501:8501 -e GEMINI_API_KEY=... insurance-chatbot
 #
-# Runtime configuration comes from environment variables (Space "Variables and
-# secrets"), exactly like the local .env file -- .env itself is never copied
-# into the image (.dockerignore).
+# No model is downloaded (embeddings and answers both come from the Gemini
+# API), so the image stays small. The vector index needs GEMINI_API_KEY to
+# embed the PDFs, so it's built when the container STARTS rather than at
+# build time: `scripts.ingest` indexes data/pdfs on first start and skips
+# unchanged files after that (mount a volume on vectorstore_db/ to keep the
+# index -- and feedback.jsonl -- across container restarts).
+#
+# Other settings come from environment variables (`-e NAME=value`), exactly
+# like the local .env file -- .env itself is never copied into the image
+# (.dockerignore).
 # ==============================================================================
 
 FROM python:3.12-slim
 
-# Hugging Face Spaces run containers as uid 1000; the app writes its vector
-# store, MLflow runs and feedback log under the app directory at runtime.
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
-    HF_HOME=/home/user/.cache/huggingface \
     PYTHONUNBUFFERED=1
 WORKDIR /home/user/app
 
@@ -30,13 +31,5 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 COPY --chown=user . .
 
-# Bake the models and the index into the image. run_ingestion() is called
-# directly (not `python -m scripts.ingest`) because the CLI entry point
-# validates GEMINI_API_KEY, which isn't available -- or needed -- at build time.
-RUN python -c "from sentence_transformers import CrossEncoder; from config.settings import settings; CrossEncoder(settings.reranker_model)" \
- && python -c "from scripts.ingest import run_ingestion; print(run_ingestion())"
-
 EXPOSE 8501
-CMD ["streamlit", "run", "frontend/app.py", \
-     "--server.port=8501", "--server.address=0.0.0.0", \
-     "--server.headless=true", "--browser.gatherUsageStats=false"]
+CMD ["sh", "-c", "python -m scripts.ingest && exec streamlit run frontend/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false"]

@@ -13,9 +13,6 @@ $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
 $python = "M:\venvs\rag_chatbot\Scripts\python.exe"
-# Reuse the model cache already downloaded to M: (keeps the C: drive free).
-$env:HF_HOME = "M:\hf-cache"
-$env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
        Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254*' } |
        Select-Object -First 1).IPAddress

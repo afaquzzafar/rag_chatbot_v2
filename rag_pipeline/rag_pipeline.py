@@ -1,7 +1,7 @@
 # ==============================================================================
 # rag_pipeline/rag_pipeline.py
 # ------------------------------------------------------------------------------
-# THE CENTRAL ORCHESTRATOR: wires retrieval, reranking, guardrails, prompting,
+# THE CENTRAL ORCHESTRATOR: wires retrieval, guardrails, prompting,
 # and the Gemini chat model into one class the Streamlit frontend calls.
 #
 # WHAT THIS FILE DOES
@@ -10,7 +10,7 @@
 #   Chunks -> Ground LLM Response Using Retrieved Context -> Return Answer
 #   with Citations":
 #
-#     retrieve(question)        Step: vector (+hybrid+multi-query+rerank) search
+#     retrieve(question)        Step: vector (+hybrid+multi-query) search
 #     build_context(chunks)     Step: format chunks into a citation-ready
 #                                block of text for the prompt
 #     generate_answer(...)      Step: call Gemini with the grounded prompt
@@ -40,13 +40,13 @@
 #   callback. When given, the final answer streams token-by-token (via the
 #   LangChain chat model's `.stream()` instead of `.invoke()`) and `on_token`
 #   is called with the accumulated text so far on each new piece -- see
-#   generate_answer()'s docstring. Retrieval, reranking, grounding, memory,
+#   generate_answer()'s docstring. Retrieval, grounding, memory,
 #   and MLflow logging are unaffected either way; only how the final answer
 #   text is delivered changes.
 #
 # CONCURRENCY
 #   Multi-query retrieval's per-variant searches (rag_pipeline/multi_query.py)
-#   run concurrently via a thread pool in retrieve_with_stages() -- they're
+#   run concurrently via a thread pool in retrieve() -- they're
 #   independent embedding + Chroma calls with no shared state, so running
 #   them one after another was pure wasted wall-clock time. This is threads,
 #   not asyncio: the underlying I/O (the embedding provider, ChromaDB) is
@@ -61,7 +61,6 @@
 # ==============================================================================
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -74,7 +73,6 @@ from rag_pipeline.multi_hop import plan_next_hop
 from rag_pipeline.multi_query import generate_query_variants, reciprocal_rank_fusion
 from rag_pipeline.prompt_templates import NOT_FOUND_MESSAGE, build_prompt
 from rag_pipeline.query_rewriter import rewrite_query
-from rag_pipeline.reranker import rerank
 from rag_pipeline.retrieval_service import RetrievedChunk, chunk_identity
 from utils.logging_utils import get_logger
 from utils.mlflow_tracking import trace_query
@@ -178,18 +176,10 @@ def _service_error_message(exc: BaseException) -> str:
     return SERVICE_UNAVAILABLE_MESSAGE
 
 
-@dataclass
-class RetrievalStages:
-    """The candidate ranking before AND after reranking, for one question."""
-
-    before_reranking: List[RetrievedChunk]
-    after_reranking: List[RetrievedChunk]
-
-
 class RAGPipeline:
     """
     Orchestrates one full question-answering turn: rewrite -> retrieve ->
-    rerank -> build context -> generate -> guardrail-check.
+    build context -> generate -> guardrail-check.
 
     One instance is created per Streamlit session (see frontend/app.py,
     cached via st.cache_resource) and reused across every question the user
@@ -211,36 +201,10 @@ class RAGPipeline:
         """
         Retrieve the top-K most relevant chunks for `question`.
 
-        Thin wrapper around retrieve_with_stages() that returns just the
-        final, post-reranking list -- what the rest of the pipeline treats
-        as "the evidence". Use retrieve_with_stages() directly when you also
-        need the pre-reranking ranking (e.g. to measure what reranking
-        actually changed -- see scripts/evaluate_retrieval.py).
-        """
-        return self.retrieve_with_stages(question).after_reranking
-
-    def retrieve_with_stages(self, question: str) -> RetrievalStages:
-        """
-        Same retrieval as retrieve(), but returns BOTH the ranking before
-        reranking and the final ranking after it, instead of discarding the
-        pre-reranking one.
-
-        WHY THIS EXISTS
-          retrieve() used to compute the pre-reranking candidates, rerank
-          them, and only ever return the reranked result -- there was no way
-          to see what reranking actually changed. scripts/evaluate_retrieval.py
-          uses this to report Recall/Precision/NDCG/MRR BEFORE and AFTER
-          reranking side by side, so you can see reranking's real effect on
-          retrieval quality instead of just trusting that it helps.
-
         Runs vector (+ optional hybrid) search via retrieval_service --
         optionally against several LLM-generated paraphrasings of `question`
         (see rag_pipeline/multi_query.py), fused via reciprocal rank fusion
-        when ENABLE_MULTI_QUERY is set. `before_reranking` is that full
-        candidate pool (deliberately NOT cut to top_k when reranking is
-        enabled, since retrieval_service over-fetches for reranking to work
-        with -- truncating first would hide exactly the "reranking promoted
-        a candidate from rank 8 to rank 2" cases this method exists to show).
+        when ENABLE_MULTI_QUERY is set -- and keeps the best top_k.
 
         The per-variant searches (when multi-query is on) are independent of
         each other -- each is its own embedding call + Chroma query with no
@@ -253,76 +217,19 @@ class RAGPipeline:
         concurrent callers pace correctly against the same quota rather than
         each under-counting the others' requests.
 
-        The score threshold is enforced TWICE: once inside
-        retrieval_service.retrieve() on the vector/hybrid score, and again
-        here on the final score actually shown to the user. Reranking can
-        assign a candidate a very different (and more accurate) score than
-        the first stage did -- a chunk that barely cleared the first
-        threshold can still get a near-zero cross-encoder score, and
-        without this second check it would still be displayed as a
-        "source" despite being effectively irrelevant. This is also why
-        after_reranking can be shorter than top_k, or empty: a fixed source
-        count that pads out with weak matches is exactly what a real
-        relevance threshold is supposed to prevent.
+        The result can be shorter than top_k, or empty: retrieval_service
+        already dropped chunks below the score threshold, and a fixed source
+        count padded out with weak matches is exactly what a real relevance
+        threshold is supposed to prevent.
         """
         if settings.enable_multi_query:
             variants = generate_query_variants(question, self._llm, settings.multi_query_variants)
             with ThreadPoolExecutor(max_workers=len(variants)) as executor:
                 variant_results = list(executor.map(retrieval_service.retrieve, variants))
-            before_reranking = reciprocal_rank_fusion(variant_results)
+            candidates = reciprocal_rank_fusion(variant_results)
         else:
-            before_reranking = retrieval_service.retrieve(question)
-
-        if not before_reranking:
-            return RetrievalStages(before_reranking=[], after_reranking=[])
-
-        if settings.enable_reranking:
-            candidate_dicts = [
-                {
-                    "chunk_text": c.chunk_text,
-                    "score": c.score,
-                    "document_name": c.document_name,
-                    "document_type": c.document_type,
-                    "page_number": c.page_number,
-                    "chapter_title": c.chapter_title,
-                    "section_title": c.section_title,
-                }
-                for c in before_reranking
-            ]
-            reranked_dicts = rerank(question, candidate_dicts)
-            reranked = [
-                RetrievedChunk(
-                    chunk_text=d["chunk_text"],
-                    score=d.get("rerank_score", d["score"]),
-                    document_name=d["document_name"],
-                    document_type=d["document_type"],
-                    page_number=d["page_number"],
-                    chapter_title=d.get("chapter_title", ""),
-                    section_title=d.get("section_title", ""),
-                )
-                for d in reranked_dicts
-            ]
-            after_reranking = [c for c in reranked if c.score >= settings.score_threshold][: settings.top_k]
-            if not after_reranking and settings.rerank_fallback_k > 0:
-                # Broad or multi-part questions score near 0 against every
-                # chunk with this cross-encoder, so the threshold alone would
-                # turn them into an automatic "not found" (see
-                # settings.rerank_fallback_k). Hand the best few to the LLM
-                # instead; its prompt still enforces "not found" when they
-                # don't contain the answer, and their low scores keep the
-                # displayed confidence honest.
-                after_reranking = reranked[: min(settings.rerank_fallback_k, settings.top_k)]
-                logger.info(
-                    "No chunk cleared the %.2f rerank threshold; falling back to the top %d "
-                    "(best rerank score %.3f)",
-                    settings.score_threshold,
-                    len(after_reranking),
-                    after_reranking[0].score if after_reranking else 0.0,
-                )
-        else:
-            after_reranking = before_reranking[: settings.top_k]
-
-        return RetrievalStages(before_reranking=before_reranking, after_reranking=after_reranking)
+            candidates = retrieval_service.retrieve(question)
+        return candidates[: settings.top_k]
 
     def _run_multi_hop(
         self, question: str, chunks: List[RetrievedChunk], context: str
@@ -468,7 +375,7 @@ class RAGPipeline:
     ) -> Dict[str, Any]:
         """
         Run one full chat turn end-to-end: input guardrail -> query rewrite
-        -> retrieve -> rerank -> build context -> generate -> grounding
+        -> retrieve -> build context -> generate -> grounding
         check -> update memory.
 
         `on_token`, if given, is forwarded to generate_answer() so the final

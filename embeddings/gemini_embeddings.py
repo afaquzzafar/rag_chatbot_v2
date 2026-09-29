@@ -1,13 +1,12 @@
 # ==============================================================================
 # embeddings/gemini_embeddings.py
 # ------------------------------------------------------------------------------
-# PHASE 2 PROVIDER (also the only provider usable in network-restricted
-# sandboxes where huggingface.co is blocked, since this calls the Gemini API
-# over HTTPS instead of downloading model weights).
+# DEFAULT PROVIDER: calls the Gemini API over HTTPS -- no model weights are
+# downloaded, so it also works on networks that block huggingface.co.
 #
 # WHAT THIS FILE DOES
 #   Implements EmbeddingProvider using Google's hosted Gemini embedding
-#   model (default: "models/text-embedding-004") via the `google-generativeai`
+#   model (default: "models/gemini-embedding-001") via the `google-generativeai`
 #   SDK -- the same GEMINI_API_KEY already used for chat answers.
 #
 # WHY A SEPARATE "task_type" FOR DOCUMENTS VS. QUERIES

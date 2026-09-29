@@ -2,13 +2,10 @@
 # scripts/eval_questions.py
 # ------------------------------------------------------------------------------
 # WHAT THIS FILE DOES
-#   The single, shared ground-truth question set used by BOTH evaluation
-#   scripts: evaluate_embeddings.py (compares candidate embedding models) and
-#   evaluate_retrieval.py (evaluates the full, deployed retrieval pipeline).
-#   Kept in one place so both scripts are measured against the identical
-#   questions -- otherwise their numbers wouldn't be comparable, and updating
-#   the ground truth (e.g. after adding a new source document) would mean
-#   remembering to edit it in two places.
+#   The ground-truth question set used by evaluate_retrieval.py (evaluates
+#   the full, deployed retrieval pipeline). Kept in its own module so any
+#   future evaluation script is measured against the identical questions --
+#   otherwise their numbers wouldn't be comparable.
 #
 # WHERE THIS GROUND TRUTH CAME FROM
 #   Each row is a realistic member question, hand-paired with the

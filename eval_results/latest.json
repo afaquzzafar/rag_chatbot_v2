@@ -1,0 +1,1052 @@
+{
+  "timestamp": "20260929T055421Z",
+  "settings": {
+    "embedding_provider": "gemini",
+    "embedding_model": "models/gemini-embedding-001",
+    "enable_hybrid_search": true,
+    "enable_multi_query": true,
+    "top_k": 5,
+    "score_threshold": 0.3
+  },
+  "corpus_fingerprint": "666a69f1db56a2c9",
+  "aggregate": {
+    "recall_at_k": {
+      "1": 0.55,
+      "3": 0.8,
+      "5": 1.0
+    },
+    "precision_at_k": {
+      "1": 0.55,
+      "3": 0.26666666666666666,
+      "5": 0.2
+    },
+    "ndcg_at_k": {
+      "1": 0.55,
+      "3": 0.6880929753571458,
+      "5": 0.7698459118879393
+    },
+    "mrr": 0.695
+  },
+  "per_query": [
+    {
+      "question": "What is the annual medical deductible?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 1,
+      "metrics": {
+        "found_rank": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.38685280723454163
+        },
+        "reciprocal_rank": 0.2
+      },
+      "retrieved": [
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 2,
+          "score": 0.8926
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 2,
+          "score": 0.7518
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.7943
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.8949
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 1,
+          "score": 0.8739
+        }
+      ]
+    },
+    {
+      "question": "What is the out-of-pocket maximum for a family?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 1,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 1,
+          "score": 0.9138
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.7773
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 64,
+          "score": 0.7189
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.703
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.8286
+        }
+      ]
+    },
+    {
+      "question": "How much is a primary care visit copay?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 2,
+      "metrics": {
+        "found_rank": 4,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.43067655807339306
+        },
+        "reciprocal_rank": 0.25
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 16,
+          "score": 0.7692
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 15,
+          "score": 0.7664
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 16,
+          "score": 0.7871
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 2,
+          "score": 0.8753
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 69,
+          "score": 0.8909
+        }
+      ]
+    },
+    {
+      "question": "What do I pay for an emergency room visit?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 2,
+      "metrics": {
+        "found_rank": 3,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.5,
+          "5": 0.5
+        },
+        "reciprocal_rank": 0.3333333333333333
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 18,
+          "score": 0.79
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 30,
+          "score": 0.7504
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 2,
+          "score": 0.8465
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 65,
+          "score": 0.8778
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 19,
+          "score": 0.7529
+        }
+      ]
+    },
+    {
+      "question": "How much does a generic Tier 1 drug cost?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 3,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 3,
+          "score": 0.915
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.7816
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 65,
+          "score": 0.6678
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 7,
+          "score": 0.701
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 1,
+          "score": 0.7171
+        }
+      ]
+    },
+    {
+      "question": "Is routine dental cleaning covered?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 4,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 4,
+          "score": 0.9029
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 28,
+          "score": 0.8098
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 27,
+          "score": 0.6927
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 28,
+          "score": 0.8508
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 1,
+          "score": 0.865
+        }
+      ]
+    },
+    {
+      "question": "How many eye exams are covered per year?",
+      "expected_file": "Summary_of_Benefits.pdf",
+      "expected_page": 4,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 4,
+          "score": 0.904
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 28,
+          "score": 0.6778
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.8723
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 1,
+          "score": 0.6891
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.8767
+        }
+      ]
+    },
+    {
+      "question": "What is the definition of coinsurance?",
+      "expected_file": "Evidence_of_Coverage.pdf",
+      "expected_page": 64,
+      "metrics": {
+        "found_rank": 4,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.43067655807339306
+        },
+        "reciprocal_rank": 0.25
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 26,
+          "score": 0.8562
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 65,
+          "score": 0.7371
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 2,
+          "score": 0.7288
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 64,
+          "score": 0.752
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 25,
+          "score": 0.7059
+        }
+      ]
+    },
+    {
+      "question": "Are emergency services covered outside the network?",
+      "expected_file": "Evidence_of_Coverage.pdf",
+      "expected_page": 19,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 19,
+          "score": 0.9149
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 20,
+          "score": 0.8794
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 18,
+          "score": 0.9128
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 30,
+          "score": 0.7853
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 19,
+          "score": 0.8547
+        }
+      ]
+    },
+    {
+      "question": "What services are excluded from coverage?",
+      "expected_file": "Evidence_of_Coverage.pdf",
+      "expected_page": 26,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 26,
+          "score": 0.9177
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 27,
+          "score": 0.9095
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 28,
+          "score": 0.6571
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 15,
+          "score": 0.677
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 22,
+          "score": 0.6777
+        }
+      ]
+    },
+    {
+      "question": "How many days do I have to file an appeal?",
+      "expected_file": "Evidence_of_Coverage.pdf",
+      "expected_page": 44,
+      "metrics": {
+        "found_rank": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.0,
+          "5": 0.38685280723454163
+        },
+        "reciprocal_rank": 0.2
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 45,
+          "score": 0.9014
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 45,
+          "score": 0.7589
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 51,
+          "score": 0.8564
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 51,
+          "score": 0.8477
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 44,
+          "score": 0.8137
+        }
+      ]
+    },
+    {
+      "question": "What is prior authorization and when do I need it?",
+      "expected_file": "Evidence_of_Coverage.pdf",
+      "expected_page": 16,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 16,
+          "score": 0.9005
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 17,
+          "score": 0.8546
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 31,
+          "score": 0.8683
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 69,
+          "score": 0.8404
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 16,
+          "score": 0.8469
+        }
+      ]
+    },
+    {
+      "question": "Does the deductible apply to preventive care visits?",
+      "expected_file": "Evidence_of_Coverage.pdf",
+      "expected_page": 24,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 24,
+          "score": 0.9096
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 69,
+          "score": 0.7506
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 2,
+          "score": 0.7892
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 26,
+          "score": 0.778
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 65,
+          "score": 0.8791
+        }
+      ]
+    },
+    {
+      "question": "Can I add my spouse to my health plan?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 1,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 1,
+          "score": 0.909
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 8,
+          "score": 0.8336
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 8,
+          "score": 0.8605
+        },
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 3,
+          "score": 0.7586
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 8,
+          "score": 0.8117
+        }
+      ]
+    },
+    {
+      "question": "What is coordination of benefits?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 3,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 3,
+          "score": 0.9168
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 14,
+          "score": 0.7965
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 8,
+          "score": 0.8027
+        },
+        {
+          "document_name": "Summary_of_Benefits.pdf",
+          "page_number": 1,
+          "score": 0.8331
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 63,
+          "score": 0.7152
+        }
+      ]
+    },
+    {
+      "question": "How long does a standard prior authorization review take?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 4,
+      "metrics": {
+        "found_rank": 3,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.5,
+          "5": 0.5
+        },
+        "reciprocal_rank": 0.3333333333333333
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 42,
+          "score": 0.8181
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 43,
+          "score": 0.827
+        },
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 4,
+          "score": 0.9179
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 16,
+          "score": 0.849
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 43,
+          "score": 0.8095
+        }
+      ]
+    },
+    {
+      "question": "What are the two levels of the appeals process?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 5,
+      "metrics": {
+        "found_rank": 2,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.6309297535714575,
+          "5": 0.6309297535714575
+        },
+        "reciprocal_rank": 0.5
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 53,
+          "score": 0.9028
+        },
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 5,
+          "score": 0.8612
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 44,
+          "score": 0.7846
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 46,
+          "score": 0.8595
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 51,
+          "score": 0.8843
+        }
+      ]
+    },
+    {
+      "question": "How are network providers credentialed?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 6,
+      "metrics": {
+        "found_rank": 2,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.6309297535714575,
+          "5": 0.6309297535714575
+        },
+        "reciprocal_rank": 0.5
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 17,
+          "score": 0.8751
+        },
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 6,
+          "score": 0.9037
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 5,
+          "score": 0.8863
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 15,
+          "score": 0.8986
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 17,
+          "score": 0.7263
+        }
+      ]
+    },
+    {
+      "question": "How do I report suspected insurance fraud?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 8,
+      "metrics": {
+        "found_rank": 1,
+        "recall_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 1.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "reciprocal_rank": 1.0
+      },
+      "retrieved": [
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 8,
+          "score": 0.8915
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 39,
+          "score": 0.8627
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 55,
+          "score": 0.6607
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 57,
+          "score": 0.7966
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 56,
+          "score": 0.8671
+        }
+      ]
+    },
+    {
+      "question": "How can I request a copy of my health records?",
+      "expected_file": "Policy_Manual.pdf",
+      "expected_page": 9,
+      "metrics": {
+        "found_rank": 3,
+        "recall_at_k": {
+          "1": 0.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "precision_at_k": {
+          "1": 0.0,
+          "3": 0.3333333333333333,
+          "5": 0.2
+        },
+        "ndcg_at_k": {
+          "1": 0.0,
+          "3": 0.5,
+          "5": 0.5
+        },
+        "reciprocal_rank": 0.3333333333333333
+      },
+      "retrieved": [
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 36,
+          "score": 0.7313
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 35,
+          "score": 0.7647
+        },
+        {
+          "document_name": "Policy_Manual.pdf",
+          "page_number": 9,
+          "score": 0.8824
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 16,
+          "score": 0.8725
+        },
+        {
+          "document_name": "Evidence_of_Coverage.pdf",
+          "page_number": 2,
+          "score": 0.8199
+        }
+      ]
+    }
+  ]
+}

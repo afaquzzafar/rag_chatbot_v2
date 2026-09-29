@@ -17,7 +17,7 @@ from config.settings import settings
 
 def test_validate_requires_gemini_key_when_llm_provider_is_gemini(monkeypatch):
     monkeypatch.setattr(settings, "llm_provider", "gemini")
-    monkeypatch.setattr(settings, "embedding_provider", "local")
+    monkeypatch.setattr(settings, "embedding_provider", "gemini")
     monkeypatch.setattr(settings, "gemini_api_key", "")
 
     with pytest.raises(ValueError, match="GEMINI_API_KEY"):

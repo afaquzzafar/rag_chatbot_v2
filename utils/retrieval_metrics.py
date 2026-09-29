@@ -9,11 +9,10 @@
 #   considered).
 #
 # WHY THIS SHAPE, SPECIFICALLY
-#   scripts/evaluate_embeddings.py (compares candidate embedding MODELS) and
 #   scripts/evaluate_retrieval.py (evaluates the full, deployed retrieval
-#   pipeline) both need the exact same four metrics, computed the exact same
-#   way, so their numbers are comparable. Factoring the math out here means
-#   neither script hand-rolls it, and a fix/change applies to both at once.
+#   pipeline) needs these four standard metrics computed exactly and
+#   consistently. Factoring the math out here keeps it separately testable
+#   and reusable by any future evaluation script.
 #
 # THE FOUR METRICS
 #   - Recall@K:    of all truly relevant items, what fraction were found

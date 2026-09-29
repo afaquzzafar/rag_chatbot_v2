@@ -102,7 +102,6 @@ def render_sidebar() -> None:
         st.text(f"Embedding provider: {settings.embedding_provider}")
         st.text(f"Top-K retrieved: {settings.top_k}")
         st.text(f"Hybrid search: {'on' if settings.enable_hybrid_search else 'off'}")
-        st.text(f"Reranking: {'on' if settings.enable_reranking else 'off'}")
 
         st.subheader("Knowledge Base")
         try:
@@ -231,7 +230,7 @@ def main() -> None:
         with st.chat_message("assistant"):
             # A placeholder that first shows a "searching" notice, then gets
             # overwritten with the answer as it streams in -- generate_answer()
-            # only calls on_token() once retrieval/reranking/multi-hop are
+            # only calls on_token() once retrieval/multi-hop are
             # already done and the LLM call has actually started, so this
             # notice naturally covers that earlier work with no separate
             # spinner needed.

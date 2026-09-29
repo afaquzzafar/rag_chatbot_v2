@@ -11,8 +11,8 @@
 #   grounded (e.g. the right chunk retrieved, but the model summarized it
 #   poorly). The only reliable signal for "is this actually helping members"
 #   is real user feedback. Logging it -- question, answer, sources, rating --
-#   gives you a dataset to later use for prompt tuning, retrieval tuning, or
-#   picking a better reranker threshold.
+#   gives you a dataset to later use for prompt tuning, or retrieval tuning
+#   (e.g. picking a better score threshold).
 #
 # WHY JSON LINES (.jsonl) INSTEAD OF SQLITE HERE
 #   Feedback is write-heavy and append-only, and rarely needs SQL-style

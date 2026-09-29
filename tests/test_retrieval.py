@@ -77,24 +77,3 @@ def test_retrieve_on_empty_index_returns_empty_list():
     results = retrieval_service.retrieve("anything")
     assert results == []
 
-
-def test_retrieve_does_not_truncate_early_when_reranking_is_enabled(monkeypatch):
-    # Regression test: retrieval_service.retrieve() must NOT cut the
-    # candidate pool down to top_k when reranking is enabled -- the
-    # cross-encoder reranker (applied afterward, in RAGPipeline.retrieve())
-    # needs the full filtered pool to have any chance of promoting a
-    # candidate that vector/hybrid scoring ranked below top_k. Truncating
-    # here first would make reranking unable to change anything beyond
-    # re-sorting whatever handful of items survived the early cut.
-    from config.settings import settings
-
-    monkeypatch.setattr(settings, "enable_hybrid_search", False)
-    monkeypatch.setattr(settings, "enable_reranking", True)
-    _seed_chunks(count=8)
-
-    results = retrieval_service.retrieve("plan benefits", top_k=3, score_threshold=0.0)
-
-    # All 8 candidates clear the threshold (0.0), so with reranking
-    # enabled every one of them should come back -- NOT capped at 3 -- so
-    # the reranker downstream has the full pool to judge.
-    assert len(results) == 8

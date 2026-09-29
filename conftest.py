@@ -64,7 +64,6 @@ def isolated_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "pdf_data_dir", str(tmp_path / "pdfs"))
     monkeypatch.setattr(settings, "mlflow_tracking_dir", str(tmp_path / "mlruns"))
     monkeypatch.setattr(settings, "feedback_log_path", str(tmp_path / "feedback.jsonl"))
-    monkeypatch.setattr(settings, "enable_reranking", False)  # avoid HF model download in tests
     monkeypatch.setattr(settings, "gemini_api_key", "test-key-not-real")
     # The production default score_threshold (0.3) is meaningless against
     # FakeEmbeddingProvider's hash-based vectors, which carry no real

@@ -10,7 +10,7 @@
 #
 # WHY A SEPARATE "SERVICE" CLASS INSTEAD OF CALLING chroma_manager DIRECTLY
 #   RAGPipeline (rag_pipeline.py) shouldn't need to know HOW retrieval works
-#   (vector-only vs. hybrid, whether reranking is applied) -- only that it
+#   (vector-only vs. hybrid) -- only that it
 #   can call `retrieve(question, top_k)` and get back ranked chunks. This
 #   class is the seam where retrieval strategy can evolve (e.g. add hybrid
 #   search, tune the threshold) without touching the pipeline that calls it.
@@ -141,29 +141,21 @@ def retrieve(
 
     Args:
         question: the (rewritten, standalone) user question.
-        top_k: how many chunks the FINAL answer should use; defaults to
-               settings.top_k. When reranking is enabled, this function
-               deliberately returns MORE than top_k candidates (see
-               Returns below) -- the final top_k cut happens after
-               reranking, in RAGPipeline.retrieve().
+        top_k: how many chunks to return; defaults to settings.top_k.
         score_threshold: drop chunks scoring below this; defaults to
                          settings.score_threshold (0.0 = no filtering).
 
     Returns:
-        If reranking is disabled: up to top_k RetrievedChunk objects,
-        best-first, already final.
-        If reranking is enabled: up to `top_k * 3` filtered candidates
-        (still score-sorted, but NOT yet cut to top_k), for the reranker
-        to re-judge before the real top_k is chosen downstream.
+        Up to top_k RetrievedChunk objects, best-first.
     """
     top_k = top_k if top_k is not None else settings.top_k
     score_threshold = score_threshold if score_threshold is not None else settings.score_threshold
 
     # Over-fetch a slightly larger candidate pool than top_k when hybrid
-    # search or reranking will run afterward, so those steps have enough
-    # candidates to meaningfully re-sort rather than just re-sorting an
-    # already-truncated list of `top_k` items.
-    fetch_k = top_k * 3 if settings.enable_hybrid_search or settings.enable_reranking else top_k
+    # search will run afterward, so it has enough candidates to meaningfully
+    # re-sort rather than just re-sorting an already-truncated list of
+    # `top_k` items.
+    fetch_k = top_k * 3 if settings.enable_hybrid_search else top_k
 
     candidates = _vector_search(question, top_k=fetch_k)
 
@@ -172,27 +164,14 @@ def retrieve(
 
     filtered = [c for c in candidates if c.score >= score_threshold]
 
-    if settings.enable_reranking:
-        # Do NOT cut down to top_k yet. The cross-encoder reranker
-        # (applied afterward, in RAGPipeline.retrieve()) is a more
-        # accurate judge of relevance than this stage's vector/hybrid
-        # score -- the whole reason it exists is to catch cases where a
-        # genuinely better match was ranked #6-15 here. Truncating to
-        # top_k before reranking would mean the reranker never even sees
-        # those candidates, making it unable to promote anything it
-        # didn't already agree with.
-        results = filtered
-    else:
-        results = filtered[:top_k]
+    results = filtered[:top_k]
 
     logger.info(
-        "Retrieved %d candidate chunks for question (top_k=%d, threshold=%.2f, "
-        "hybrid=%s, reranking=%s)",
+        "Retrieved %d chunks for question (top_k=%d, threshold=%.2f, hybrid=%s)",
         len(results),
         top_k,
         score_threshold,
         settings.enable_hybrid_search,
-        settings.enable_reranking,
     )
     return results
 
@@ -204,7 +183,7 @@ def retrieve_as_dicts(
 ) -> List[Dict[str, Any]]:
     """
     Same as retrieve(), but returns plain dicts -- the shape
-    rag_pipeline/reranker.py and MLflow logging expect.
+    MLflow logging expects.
     """
     chunks = retrieve(question, top_k=top_k, score_threshold=score_threshold)
     return [

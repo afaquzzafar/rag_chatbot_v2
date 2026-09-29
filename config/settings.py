@@ -96,21 +96,14 @@ class Settings:
     databricks_embedding_endpoint: str = os.getenv("DATABRICKS_EMBEDDING_ENDPOINT", "databricks-gte-large-en")
     databricks_temperature: float = float(os.getenv("DATABRICKS_TEMPERATURE", "0.1"))
 
-    # -- Embeddings (pluggable: "local", "gemini", or "databricks") ----------
+    # -- Embeddings (pluggable: "gemini" or "databricks") ---------------------
     # This single switch is the whole point of the abstraction in
-    # embeddings/: change EMBEDDING_PROVIDER once you're ready to move off
-    # free local embeddings, and nothing else in the app changes.
-    embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "local")  # "local" | "gemini" | "databricks"
-    # Chosen empirically, not by default: scripts/evaluate_embeddings.py's
-    # MTEB-style evaluation (Recall@K + MRR against this project's own real
-    # documents and 20 hand-verified questions) measured all-mpnet-base-v2
-    # at MRR=0.950, clearly ahead of the original all-MiniLM-L6-v2 default.
-    # It's a larger model (~420MB vs. ~80MB) and somewhat slower to embed
-    # with, but for a single-user local app that trade favors accuracy. If
-    # you add substantially different documents later, re-run that
-    # evaluation -- the best model for one corpus isn't guaranteed to stay
-    # best for another.
-    local_embedding_model: str = os.getenv("LOCAL_EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2")
+    # embeddings/: change EMBEDDING_PROVIDER and nothing else in the app
+    # changes. Both providers are hosted APIs -- the app deliberately needs
+    # no model downloads (e.g. from huggingface.co), which company networks
+    # and sandboxes often block. Switching provider changes the vectors, so
+    # delete vectorstore_db/ and re-run `python -m scripts.ingest` afterwards.
+    embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "gemini")  # "gemini" | "databricks"
     gemini_embedding_model: str = os.getenv("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
     embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
     # Gemini's free tier caps embed_content at ~100 requests/minute, and each
@@ -147,21 +140,9 @@ class Settings:
     # real usage data; there is nothing universal about 0.3 itself.
     score_threshold: float = float(os.getenv("SCORE_THRESHOLD", "0.3"))
     enable_hybrid_search: bool = _bool_env("ENABLE_HYBRID_SEARCH", True)
-    enable_reranking: bool = _bool_env("ENABLE_RERANKING", True)
-    reranker_model: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
-    # The ms-marco cross-encoder is trained on specific question -> passage
-    # matches, so broad questions ("key points of coverage", "what are my
-    # benefits?") and two-part questions score near 0 against EVERY chunk,
-    # and the post-rerank threshold then drops all of them -> "not found"
-    # even though relevant pages exist. When that happens, pass the best
-    # RERANK_FALLBACK_K reranked chunks to the LLM anyway: the system prompt
-    # still forces the exact "not found" sentence if they don't contain the
-    # answer, and the (low) confidence shown reflects the weak match.
-    # 0 restores the strict behavior (threshold can empty the result).
-    rerank_fallback_k: int = int(os.getenv("RERANK_FALLBACK_K", "3"))
 
     # -- Multi-query retrieval (rag_pipeline/multi_query.py) ------------------
-    # Off by default: unlike hybrid search and reranking (both local, free),
+    # Off by default: unlike hybrid search (local, free),
     # this costs one extra Gemini CHAT call per question -- against the free
     # tier's tight 5 requests/minute chat quota (shared with query rewriting
     # and answer generation), that adds up fast. Turn on once you're past the
@@ -208,9 +189,9 @@ class Settings:
             raise ValueError(
                 f"LLM_PROVIDER must be 'gemini' or 'databricks', got '{self.llm_provider}'"
             )
-        if self.embedding_provider not in {"local", "gemini", "databricks"}:
+        if self.embedding_provider not in {"gemini", "databricks"}:
             raise ValueError(
-                f"EMBEDDING_PROVIDER must be 'local', 'gemini', or 'databricks', got "
+                f"EMBEDDING_PROVIDER must be 'gemini' or 'databricks', got "
                 f"'{self.embedding_provider}'"
             )
         if self.llm_provider == "gemini" and not self.gemini_api_key:

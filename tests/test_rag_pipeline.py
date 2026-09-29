@@ -326,188 +326,25 @@ def test_answer_question_shows_no_sources_or_confidence_when_generation_fails(pi
     assert pipeline.memory.get_history() == []  # errors aren't fed to the next turn
 
 
-def test_retrieve_with_stages_shows_reranking_promoting_a_chunk(pipeline, monkeypatch):
-    # retrieve() alone only ever returns the FINAL (post-reranking) list --
-    # retrieve_with_stages() exists specifically so callers (e.g.
-    # scripts/evaluate_retrieval.py) can see what reranking actually did:
-    # here, the vector/hybrid stage ranks the truly relevant chunk second,
-    # but reranking correctly promotes it to first.
+def test_retrieve_returns_at_most_top_k_chunks(pipeline, monkeypatch):
     import rag_pipeline.rag_pipeline as rag_pipeline_module
 
-    monkeypatch.setattr(rag_pipeline_module.settings, "enable_reranking", True)
-    monkeypatch.setattr(rag_pipeline_module.settings, "score_threshold", 0.0)
-
-    relevant_chunk = Chunk(
-        chunk_id="relevant",
-        chunk_text="The annual deductible is $500.",
-        file_name="Summary_of_Benefits.pdf",
-        page_number=1,
-        document_type="Summary of Benefits",
-    )
-    other_chunk = Chunk(
-        chunk_id="other",
-        chunk_text="Two dental cleanings per year are covered.",
-        file_name="Summary_of_Benefits.pdf",
-        page_number=4,
-        document_type="Summary of Benefits",
-    )
-    embeddings = generate_embeddings([relevant_chunk.chunk_text, other_chunk.chunk_text])
-    chroma_manager.upsert_chunks([relevant_chunk, other_chunk], embeddings)
-
-    # Force a deterministic BEFORE ranking (vector/hybrid) with the relevant
-    # chunk second, and a deterministic AFTER ranking (reranker) with it first.
-    def fake_rerank(question, candidates):
-        for c in candidates:
-            c["rerank_score"] = 0.9 if c["chunk_text"] == relevant_chunk.chunk_text else 0.5
-        return sorted(candidates, key=lambda c: c["rerank_score"], reverse=True)
-
-    monkeypatch.setattr(rag_pipeline_module, "rerank", fake_rerank)
+    monkeypatch.setattr(rag_pipeline_module.settings, "top_k", 2)
     monkeypatch.setattr(
         rag_pipeline_module.retrieval_service,
         "retrieve",
         lambda question, top_k=None, score_threshold=None: [
             RetrievedChunk(
-                chunk_text=other_chunk.chunk_text, score=0.6, document_name="Summary_of_Benefits.pdf",
-                document_type="Summary of Benefits", page_number=4,
-            ),
-            RetrievedChunk(
-                chunk_text=relevant_chunk.chunk_text, score=0.55, document_name="Summary_of_Benefits.pdf",
-                document_type="Summary of Benefits", page_number=1,
-            ),
+                chunk_text=f"chunk {i}", score=0.9 - i / 10, document_name="doc.pdf",
+                document_type="Test", page_number=i,
+            )
+            for i in range(4)
         ],
     )
 
-    stages = pipeline.retrieve_with_stages("What is my annual deductible?")
-
-    assert stages.before_reranking[0].chunk_text == other_chunk.chunk_text
-    assert stages.before_reranking[1].chunk_text == relevant_chunk.chunk_text
-    assert stages.after_reranking[0].chunk_text == relevant_chunk.chunk_text
-    # retrieve() itself must still return exactly the "after" stage.
-    assert pipeline.retrieve("What is my annual deductible?") == stages.after_reranking
-
-
-def test_retrieve_with_stages_before_equals_after_when_reranking_disabled(pipeline, monkeypatch):
-    import rag_pipeline.rag_pipeline as rag_pipeline_module
-
-    monkeypatch.setattr(rag_pipeline_module.settings, "enable_reranking", False)
-
-    chunk = Chunk(
-        chunk_id="only",
-        chunk_text="The annual deductible is $500.",
-        file_name="Summary_of_Benefits.pdf",
-        page_number=1,
-        document_type="Summary of Benefits",
-    )
-    embeddings = generate_embeddings([chunk.chunk_text])
-    chroma_manager.upsert_chunks([chunk], embeddings)
-
-    stages = pipeline.retrieve_with_stages("What is my annual deductible?")
-
-    assert [c.chunk_text for c in stages.before_reranking] == [c.chunk_text for c in stages.after_reranking]
-
-
-def test_retrieve_drops_chunks_that_score_low_after_reranking(pipeline, monkeypatch):
-    # Regression test for a real bug: the first-stage vector/hybrid
-    # threshold ran before reranking, but nothing re-checked the threshold
-    # against the FINAL score reranking assigned. A chunk that barely
-    # cleared the first filter could still get a near-zero cross-encoder
-    # score and still be shown to the user as a "source" -- exactly what
-    # was reported live ("some documents have relevance score as 0").
-    import rag_pipeline.rag_pipeline as rag_pipeline_module
-
-    monkeypatch.setattr(rag_pipeline_module.settings, "enable_reranking", True)
-    monkeypatch.setattr(rag_pipeline_module.settings, "score_threshold", 0.3)
-
-    relevant_chunk = Chunk(
-        chunk_id="relevant",
-        chunk_text="The annual deductible is $500.",
-        file_name="Summary_of_Benefits.pdf",
-        page_number=1,
-        document_type="Summary of Benefits",
-    )
-    irrelevant_chunk = Chunk(
-        chunk_id="irrelevant",
-        chunk_text="Two dental cleanings per year are covered.",
-        file_name="Summary_of_Benefits.pdf",
-        page_number=4,
-        document_type="Summary of Benefits",
-    )
-    embeddings = generate_embeddings(
-        [relevant_chunk.chunk_text, irrelevant_chunk.chunk_text]
-    )
-    chroma_manager.upsert_chunks([relevant_chunk, irrelevant_chunk], embeddings)
-
-    # Force the reranker's output deterministically: one clearly relevant
-    # score, one that a real cross-encoder would give an irrelevant pair.
-    def fake_rerank(question, candidates):
-        for c in candidates:
-            c["rerank_score"] = 0.9 if c["chunk_text"] == relevant_chunk.chunk_text else 0.02
-        return sorted(candidates, key=lambda c: c["rerank_score"], reverse=True)
-
-    monkeypatch.setattr(rag_pipeline_module, "rerank", fake_rerank)
-
     results = pipeline.retrieve("What is my annual deductible?")
 
-    assert len(results) == 1
-    assert results[0].chunk_text == relevant_chunk.chunk_text
-    assert results[0].score == 0.9
-
-
-def _seed_chunks_all_scoring_low(monkeypatch, count):
-    """Index `count` chunks and force every rerank score below the 0.3 threshold."""
-    import rag_pipeline.rag_pipeline as rag_pipeline_module
-
-    monkeypatch.setattr(rag_pipeline_module.settings, "enable_reranking", True)
-    monkeypatch.setattr(rag_pipeline_module.settings, "score_threshold", 0.3)
-
-    chunks = [
-        Chunk(
-            chunk_id=f"c{i}",
-            chunk_text=f"Coverage detail number {i}.",
-            file_name="Evidence_of_Coverage.pdf",
-            page_number=i + 1,
-            document_type="Evidence of Coverage",
-        )
-        for i in range(count)
-    ]
-    chroma_manager.upsert_chunks(chunks, generate_embeddings([c.chunk_text for c in chunks]))
-
-    # What the real cross-encoder does to a broad question like "key points
-    # of coverage": every chunk scores near zero, but with a usable order.
-    def fake_rerank(question, candidates):
-        for c in candidates:
-            c["rerank_score"] = 0.01 * (int(c["chunk_text"].split()[-1].rstrip(".")) + 1)
-        return sorted(candidates, key=lambda c: c["rerank_score"], reverse=True)
-
-    monkeypatch.setattr(rag_pipeline_module, "rerank", fake_rerank)
-
-
-def test_retrieve_falls_back_to_top_reranked_chunks_when_threshold_drops_all(pipeline, monkeypatch):
-    # Regression test for broad questions always answering "not found":
-    # the post-rerank threshold emptied the result even though relevant
-    # pages exist, so the LLM was never asked.
-    import rag_pipeline.rag_pipeline as rag_pipeline_module
-
-    monkeypatch.setattr(rag_pipeline_module.settings, "rerank_fallback_k", 3)
-    _seed_chunks_all_scoring_low(monkeypatch, count=5)
-
-    results = pipeline.retrieve("key points of coverage")
-
-    assert [r.chunk_text for r in results] == [
-        "Coverage detail number 4.",
-        "Coverage detail number 3.",
-        "Coverage detail number 2.",
-    ]
-    assert all(r.score < 0.3 for r in results)  # low scores kept -> low confidence shown
-
-
-def test_retrieve_stays_strict_when_fallback_disabled(pipeline, monkeypatch):
-    import rag_pipeline.rag_pipeline as rag_pipeline_module
-
-    monkeypatch.setattr(rag_pipeline_module.settings, "rerank_fallback_k", 0)
-    _seed_chunks_all_scoring_low(monkeypatch, count=5)
-
-    assert pipeline.retrieve("key points of coverage") == []
+    assert [c.chunk_text for c in results] == ["chunk 0", "chunk 1"]
 
 
 def test_answer_question_blocks_prompt_injection(pipeline):
@@ -546,7 +383,6 @@ def test_retrieve_fuses_multi_query_variants_when_enabled(pipeline, monkeypatch)
         return [only_in_variant, shared] if question == "variant phrasing" else [shared]
 
     monkeypatch.setattr(rag_pipeline_module.retrieval_service, "retrieve", fake_retrieve)
-    monkeypatch.setattr(rag_pipeline_module.settings, "enable_reranking", False)
 
     results = pipeline.retrieve("original question")
 

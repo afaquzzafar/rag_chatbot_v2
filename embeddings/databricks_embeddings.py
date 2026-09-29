@@ -9,9 +9,8 @@
 #   (e.g. "databricks-gte-large-en") -- via the `databricks-sdk`.
 #
 # WHY THIS IS "FULLY KEYLESS"
-#   Every other provider in this app (Gemini, and the local model download)
-#   needs *some* credential your code has to hold: a GEMINI_API_KEY, or an
-#   internet path to huggingface.co. This provider authenticates through
+#   The Gemini provider needs a credential your code has to hold (a
+#   GEMINI_API_KEY). This provider authenticates through
 #   `databricks.sdk.WorkspaceClient()`, which uses the Databricks SDK's
 #   standard auth resolution chain: explicit DATABRICKS_HOST/DATABRICKS_TOKEN
 #   if set (useful for testing from outside a workspace), falling back to
@@ -23,7 +22,7 @@
 #
 # WHY A SEPARATE FILE (same reasoning as gemini_embeddings.py)
 #   Importing this module requires `databricks-sdk` to be installed, but a
-#   developer using EMBEDDING_PROVIDER=local or "gemini" should never need
+#   developer using EMBEDDING_PROVIDER=gemini should never need
 #   that dependency installed at all -- the lazy `import` inside __init__
 #   keeps it optional.
 #
