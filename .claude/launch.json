@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "chatbot-lan",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "scripts\\run_lan.ps1"],
+      "port": 8501
+    }
+  ]
+}

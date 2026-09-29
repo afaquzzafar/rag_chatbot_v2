@@ -363,3 +363,27 @@ Notes:
 - Space storage is not persistent: feedback (`vectorstore_db/feedback.jsonl`)
   and MLflow runs are lost when the Space restarts. The index itself is
   rebuilt into the image on every deploy.
+
+## 13. Sharing on your local network
+
+Hosting on Hugging Face now needs a paid PRO plan for Docker Spaces, so the
+free way to share the app is from this PC to other devices on the same
+Wi-Fi/office network:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_lan.ps1
+```
+
+It prints the address to open on other devices (`http://<this-PC-IP>:8501`).
+Windows Firewall must allow **inbound TCP 8501**. Either click **Allow** when
+Windows asks the first time, or run once in an *administrator* PowerShell:
+
+```powershell
+New-NetFirewallRule -DisplayName "RAG chatbot (Streamlit 8501)" -Direction Inbound -Protocol TCP -LocalPort 8501 -Action Allow -Profile Private
+```
+
+The rule above only applies on networks marked **Private** (Settings ->
+Network & internet -> Wi-Fi -> your network -> Private network). Only do that
+for a network you trust, such as home or office. The app has no login, so
+anyone on the network can use it and your Gemini quota. The PC must stay on
+with the script running.
