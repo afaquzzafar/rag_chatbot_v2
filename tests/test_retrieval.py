@@ -72,6 +72,27 @@ def test_retrieve_applies_score_threshold(monkeypatch):
     assert len(results) == 4
 
 
+def test_score_threshold_applies_to_raw_similarity_not_the_hybrid_boost(monkeypatch):
+    # Regression test: hybrid search normalizes BM25 against the best
+    # keyword match among the candidates, so the top candidate always gets
+    # the full +0.3 keyword bonus -- an off-topic question ("weather in
+    # Delhi") scored ~0.83 and passed the threshold with 5 "sources". The
+    # threshold must judge the raw vector similarity instead.
+    from config.settings import settings
+
+    monkeypatch.setattr(settings, "enable_hybrid_search", True)
+    weak = [
+        retrieval_service.RetrievedChunk(
+            chunk_text=f"plan benefits chunk {i}", score=0.7, document_name="doc.pdf",
+            document_type="Test", page_number=i,
+        )
+        for i in range(3)
+    ]
+    monkeypatch.setattr(retrieval_service, "_vector_search", lambda question, top_k: list(weak))
+
+    assert retrieval_service.retrieve("plan benefits", top_k=5, score_threshold=0.8) == []
+
+
 def test_retrieve_on_empty_index_returns_empty_list():
     assert chroma_manager.count() == 0
     results = retrieval_service.retrieve("anything")

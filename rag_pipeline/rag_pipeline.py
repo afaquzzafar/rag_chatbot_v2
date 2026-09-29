@@ -176,6 +176,21 @@ def _service_error_message(exc: BaseException) -> str:
     return SERVICE_UNAVAILABLE_MESSAGE
 
 
+def _normalize_answer(text: str) -> str:
+    return text.strip().strip("\"'*_` ").rstrip(".").strip().lower()
+
+
+def _is_not_found_answer(answer: str) -> bool:
+    """
+    True when the model's whole answer is the required "not found" sentence
+    (tolerating quotes/markdown emphasis/a missing period around it). An
+    answer that merely CONTAINS that sentence -- e.g. one part of a two-part
+    question answered, the other not found -- is a real answer and keeps
+    its sources.
+    """
+    return _normalize_answer(answer) == _normalize_answer(NOT_FOUND_MESSAGE)
+
+
 class RAGPipeline:
     """
     Orchestrates one full question-answering turn: rewrite -> retrieve ->
@@ -460,19 +475,29 @@ class RAGPipeline:
                         "grounded": True,
                         "service_error": True,
                     }
-                sources = [
-                    {
-                        "document_name": c.document_name,
-                        "document_type": c.document_type,
-                        "page_number": c.page_number,
-                        "score": c.score,
-                        "chapter_title": c.chapter_title,
-                        "section_title": c.section_title,
-                    }
-                    for c in chunks
-                ]
-                confidence = sum(c.score for c in chunks) / len(chunks)
-                is_grounded = guardrails.check_grounding(answer, [c.chunk_text for c in chunks])
+                if _is_not_found_answer(answer):
+                    # The model read the retrieved chunks and found no
+                    # answer in them. Listing those chunks as "sources", with
+                    # their retrieval scores as "confidence", would present
+                    # a non-answer as if it were backed by 5 documents.
+                    answer = NOT_FOUND_MESSAGE
+                    sources = []
+                    confidence = 0.0
+                    is_grounded = True
+                else:
+                    sources = [
+                        {
+                            "document_name": c.document_name,
+                            "document_type": c.document_type,
+                            "page_number": c.page_number,
+                            "score": c.score,
+                            "chapter_title": c.chapter_title,
+                            "section_title": c.section_title,
+                        }
+                        for c in chunks
+                    ]
+                    confidence = sum(c.score for c in chunks) / len(chunks)
+                    is_grounded = guardrails.check_grounding(answer, [c.chunk_text for c in chunks])
 
             # Only real answers go into conversation memory -- an error
             # message in the history would be fed to the query rewriter and

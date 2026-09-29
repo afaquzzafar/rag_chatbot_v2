@@ -133,12 +133,19 @@ class Settings:
     # A threshold of 0.0 filters nothing, which means the app would always
     # show exactly top_k "sources" even when none of them are actually
     # relevant -- a fixed-size list of citations, some scoring ~0, is
-    # actively misleading in an insurance context. 0.3 is a deliberately
-    # moderate default: high enough to drop obviously irrelevant chunks,
-    # low enough not to hide a genuinely useful but imperfect match. Tune
-    # this against your own retrieved-score distribution once you have
-    # real usage data; there is nothing universal about 0.3 itself.
-    score_threshold: float = float(os.getenv("SCORE_THRESHOLD", "0.3"))
+    # actively misleading in an insurance context.
+    #
+    # The right value depends entirely on the embedding model, because each
+    # model has its own similarity scale. gemini-embedding-001 scores even
+    # unrelated text ~0.75-0.80 against these documents, so a "moderate"
+    # 0.3 filtered nothing. 0.81 was measured on this corpus: every chunk a
+    # real question needed (20 labeled questions + 8 broad ones like "key
+    # points of coverage") scored >= 0.819, while off-topic questions
+    # ("weather in Delhi", "recipe for pasta", ...) topped out at 0.798.
+    # The margin is narrow, so re-measure after changing the embedding
+    # model or adding very different documents. The threshold is applied to
+    # raw vector similarity, before hybrid blending (see retrieval_service).
+    score_threshold: float = float(os.getenv("SCORE_THRESHOLD", "0.81"))
     enable_hybrid_search: bool = _bool_env("ENABLE_HYBRID_SEARCH", True)
 
     # -- Multi-query retrieval (rag_pipeline/multi_query.py) ------------------

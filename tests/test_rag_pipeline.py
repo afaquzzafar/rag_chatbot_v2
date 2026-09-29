@@ -106,6 +106,59 @@ def test_answer_question_returns_citations_with_mocked_llm(pipeline, monkeypatch
     assert len(pipeline.memory.get_history()) == 2
 
 
+@pytest.mark.parametrize(
+    "model_reply",
+    [NOT_FOUND_MESSAGE, f'"{NOT_FOUND_MESSAGE}"\n', NOT_FOUND_MESSAGE.rstrip(".")],
+)
+def test_answer_question_shows_no_sources_when_the_model_finds_no_answer(pipeline, monkeypatch, model_reply):
+    # Regression test: "What's the weather in Delhi today?" returned the
+    # not-found sentence but still listed 5 retrieved chunks as sources,
+    # with their average retrieval score shown as ~64% confidence.
+    chunk = Chunk(
+        chunk_id="chunk-1",
+        chunk_text="The annual deductible for this plan is $250 per member.",
+        file_name="Summary_of_Benefits.pdf",
+        page_number=3,
+        document_type="Summary of Benefits",
+    )
+    chroma_manager.upsert_chunks([chunk], generate_embeddings([chunk.chunk_text]))
+    monkeypatch.setattr(
+        type(pipeline._llm),
+        "invoke",
+        lambda self, messages, **kwargs: SimpleNamespace(content=model_reply),
+    )
+
+    result = pipeline.answer_question("What's the weather in Delhi today?")
+
+    assert result["answer"] == NOT_FOUND_MESSAGE
+    assert result["sources"] == []
+    assert result["confidence"] == 0.0
+
+
+def test_answer_question_keeps_sources_for_a_partial_answer(pipeline, monkeypatch):
+    # An answer that only CONTAINS the not-found sentence (one part of a
+    # two-part question answered) is a real answer and must keep sources.
+    chunk = Chunk(
+        chunk_id="chunk-1",
+        chunk_text="The annual deductible for this plan is $250 per member.",
+        file_name="Summary_of_Benefits.pdf",
+        page_number=3,
+        document_type="Summary of Benefits",
+    )
+    chroma_manager.upsert_chunks([chunk], generate_embeddings([chunk.chunk_text]))
+    partial = f"The deductible is $250 (Source: Summary_of_Benefits.pdf, page 3). {NOT_FOUND_MESSAGE}"
+    monkeypatch.setattr(
+        type(pipeline._llm),
+        "invoke",
+        lambda self, messages, **kwargs: SimpleNamespace(content=partial),
+    )
+
+    result = pipeline.answer_question("What is my deductible and the weather today?")
+
+    assert result["answer"] == partial
+    assert len(result["sources"]) == 1
+
+
 def test_generate_answer_degrades_gracefully_when_llm_keeps_failing(pipeline, monkeypatch):
     import time
 

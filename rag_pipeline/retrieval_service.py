@@ -159,10 +159,17 @@ def retrieve(
 
     candidates = _vector_search(question, top_k=fetch_k)
 
-    if settings.enable_hybrid_search:
-        candidates = _hybrid_rescore(question, candidates)
-
+    # The threshold applies to the RAW vector similarity, before hybrid
+    # blending. _hybrid_rescore normalizes BM25 against the best keyword
+    # match within the candidate set, so the top candidate always gets the
+    # full keyword bonus -- even for an off-topic question ("weather in
+    # Delhi") whose best "match" shares a single word. A threshold on the
+    # blended score therefore can't tell relevant from irrelevant; hybrid
+    # search is only used to re-order what passed.
     filtered = [c for c in candidates if c.score >= score_threshold]
+
+    if settings.enable_hybrid_search:
+        filtered = _hybrid_rescore(question, filtered)
 
     results = filtered[:top_k]
 
